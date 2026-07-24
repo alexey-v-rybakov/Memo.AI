@@ -7,121 +7,65 @@ using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Json;
+using MailKit;
+using MailKit.Net.Imap;
+using MailKit.Net.Smtp;
+using MailKit.Search;
+using MimeKit;
+using Serilog;
+using Serilog.Settings.Configuration;
+
+
 
 namespace MemosAI
 {
     internal class Program
     {
-        // Лучше потом перенести в appsettings.json
-        private const string Host = "https://memo.feshman-tech.ru";
-        private const string Token = "memos_pat_IVxXijTXHTTdu5tZ66AHwWWewcm6Yhzl";
-        // Класс для работы с моделью
-        private static string modelId = "";
-        private static string apiKey = "";
-        private static string endpoint = "";
-       
+        private static ManualResetEvent thdStopEvent = new ManualResetEvent(false);
+        
         static async Task Main(string[] args)
         {
-            // Чтение конфигурации из файла
-            var config = new ConfigurationBuilder()
-                                .AddJsonFile("appsettings.json", optional: false)
-                                .Build();
+            // Настройка логирования
+           var config = new ConfigurationBuilder()
+                    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                    .AddJsonFile("logsettings.json", optional: false, reloadOnChange: true)
+                    .Build();
 
-            modelId = config["LLM:ModelId"]!;
-            apiKey = config["LLM:ApiKey"]!;
-            endpoint = config["LLM:Endpoint"]!;
+            Log.Logger = new LoggerConfiguration()
+                    .ReadFrom.Configuration(config)
+                    .CreateLogger();
+            
+            Log.Information("========== STCMedBoot запущен ============");
 
-            Console.WriteLine("=== Memos AI Agent ===");
-            Console.WriteLine();
+            // Читаем настройки
 
-            try
-            {
-                var client = new MemosClient(Host, Token);
+            AppConfig.ReadConfig();    
 
-                Console.WriteLine("Получение заметок...");
-
-                var memos = await client.GetAllMemos();
-
-                Console.WriteLine($"Получено {memos.Count} заметок.");
-                Console.WriteLine();
-
-                int processed = 0;
-
-                foreach (var memo in memos)
-                {
-                    Console.WriteLine("--------------------------------------");
-                    Console.WriteLine($"UID: {memo.Uid}");
-                    Console.WriteLine($"Name: {memo.Name}");
-
-                    try
-                    {
-                       
-                        await ProcessMemo(memo);
-
-                        //await client.UpdateMemo(memo);
-
-                        processed++;
-
-                        Console.WriteLine("✓ Заметка обновлена.");
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine($"Ошибка обработки: {ex.Message}");
-                        Console.ResetColor();
-                    }
-
-                    Console.WriteLine();
-                }
-
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("--------------------------------------");
-                Console.WriteLine($"Готово. Обработано {processed} из {memos.Count} заметок.");
-                Console.ResetColor();
-            }
-            catch (Exception ex)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine(ex);
-                Console.ResetColor();
-            }
+            // Create a new thread and start it
+             System.Threading.Thread workerThread = new System.Threading.Thread(WorkerMethod);
+            workerThread.Start();
 
             Console.WriteLine();
             Console.WriteLine("Нажмите любую клавишу...");
             Console.ReadKey();
+
+            thdStopEvent.Set();
+
+            workerThread.Join();
+            Console.WriteLine("Поток завершен");
+   
         }
 
-        private static async Task ProcessMemo(Memo memo)
-        {
-            var llm_builder = Kernel.CreateBuilder();
-            llm_builder.AddOpenAIChatCompletion(
-                                                    modelId: modelId!,
-                                                    apiKey: apiKey!,
-                                                    endpoint: new Uri(endpoint!)
-                                                );
-
-            var llm_kernel = llm_builder.Build();
-            var chat = llm_kernel.GetRequiredService<IChatCompletionService>();
-
-            Console.WriteLine("Обработка AI...");
-
-            // Здесь позже будет вызов OpenAI / LM Studio / Ollama
-            if (memo.Content.Contains("#aip"))
+        private static void WorkerMethod()
+        {            
+            while (!thdStopEvent.WaitOne(10000))
             {
-                var response = await chat.GetChatMessageContentAsync(
-    "Прочитай мою заметки и предложи 3-4 тега для нее. Ответ должен быть в json содержащий только теги. Отсоритруй теги в порядке релевантности  " + memo.Content);
-                    Console.WriteLine(response.Content);
+                Console.WriteLine("Thread is running...");
+                System.Threading.Thread.Sleep(1000); // Sleep for 1 second
 
-                // Здесь можно добавить дополнительную логику для обработки тега
-                Console.WriteLine("Тег #aip найден в заметке.");
             }
 
-
-
-
-            memo.Content += $"\n\n---\nОбработано AI {DateTime.Now:G}";
-
-            await Task.CompletedTask;
+            Console.WriteLine("Thread has exited.");
         }
     }
 }

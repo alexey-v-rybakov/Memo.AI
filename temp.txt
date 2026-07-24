@@ -1,0 +1,279 @@
+        // Лучше потом перенести в appsettings.json
+        private const string Host = "https://memo.feshman-tech.ru";
+        private const string Token = "memos_pat_IVxXijTXHTTdu5tZ66AHwWWewcm6Yhzl";
+        // Класс для работы с моделью
+        private static string modelId = "";
+        private static string apiKey = "";
+        private static string endpoint = "";
+
+
+            // Чтение конфигурации из файла
+            var config = new ConfigurationBuilder()
+                                .AddJsonFile("appsettings.json", optional: false)
+                                .Build();
+
+            modelId = config["LLM:ModelId"]!;
+            apiKey = config["LLM:ApiKey"]!;
+            endpoint = config["LLM:Endpoint"]!;
+
+            Console.WriteLine("=== Memos AI Agent ===");
+            Console.WriteLine();
+
+
+
+            await ProccessMail();
+
+            return;
+            try
+            {
+                var client = new MemosClient(Host, Token);
+
+                Console.WriteLine("Получение заметок...");
+
+                var memos = await client.GetAllMemos();
+
+                Console.WriteLine($"Получено {memos.Count} заметок.");
+                Console.WriteLine();
+
+                int processed = 0;
+
+                foreach (var memo in memos)
+                {
+                    Console.WriteLine("--------------------------------------");
+                    Console.WriteLine($"UID: {memo.Uid}");
+                    Console.WriteLine($"Name: {memo.Name}");
+
+                    try
+                    {
+                       
+                        await ProcessMemo(memo);
+
+                        //await client.UpdateMemo(memo);
+
+                        processed++;
+
+                        Console.WriteLine("✓ Заметка обновлена.");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine($"Ошибка обработки: {ex.Message}");
+                        Console.ResetColor();
+                    }
+
+                    Console.WriteLine();
+                }
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("--------------------------------------");
+                Console.WriteLine($"Готово. Обработано {processed} из {memos.Count} заметок.");
+                Console.ResetColor();
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine(ex);
+                Console.ResetColor();
+            }
+
+
+
+
+     private static async Task ProcessMemo(Memo memo)
+        {
+            var llm_builder = Kernel.CreateBuilder();
+            llm_builder.AddOpenAIChatCompletion(
+                                                    modelId: modelId!,
+                                                    apiKey: apiKey!,
+                                                    endpoint: new Uri(endpoint!)
+                                                );
+
+            var llm_kernel = llm_builder.Build();
+            var chat = llm_kernel.GetRequiredService<IChatCompletionService>();
+
+            Console.WriteLine("Обработка AI...");
+
+            // Здесь позже будет вызов OpenAI / LM Studio / Ollama
+            if (memo.Content.Contains("#aip"))
+            {
+                var response = await chat.GetChatMessageContentAsync(
+    "Прочитай мою заметки и предложи 3-4 тега для нее. Ответ должен быть в json содержащий только теги. Отсоритруй теги в порядке релевантности  " + memo.Content);
+                    Console.WriteLine(response.Content);
+
+                // Здесь можно добавить дополнительную логику для обработки тега
+                Console.WriteLine("Тег #aip найден в заметке.");
+            }
+
+
+
+
+            memo.Content += $"\n\n---\nОбработано AI {DateTime.Now:G}";
+
+            await Task.CompletedTask;
+        }
+
+        private static async Task ProccessMail()
+        {
+            var config = new ConfigurationBuilder()
+    .AddJsonFile("appsettings.json")
+    .Build();
+
+
+var mail = config.GetSection("Mail");
+
+
+string imapServer = mail["ImapServer"]!;
+int imapPort = int.Parse(mail["ImapPort"]!);
+
+string smtpServer = mail["SmtpServer"]!;
+int smtpPort = int.Parse(mail["SmtpPort"]!);
+
+string login = mail["Login"]!;
+string password = mail["Password"]!;
+
+
+Console.WriteLine("Memo.AI Mail Listener started");
+
+
+
+using var client = new ImapClient();
+
+
+client.Connect(
+    imapServer,
+    imapPort,
+    true);
+
+
+client.Authenticate(
+    login,
+    password);
+
+
+var inbox = client.Inbox;
+
+inbox.Open(
+    MailKit.FolderAccess.ReadWrite);
+
+
+Console.WriteLine(
+    $"Писем в ящике: {inbox.Count}");
+
+
+
+var uids = inbox.Search(
+    SearchQuery.NotSeen);
+
+
+
+foreach(var uid in uids)
+{
+    var message = inbox.GetMessage(uid);
+
+
+    Console.WriteLine("----------------");
+    Console.WriteLine(
+        $"От: {message.From}");
+
+    Console.WriteLine(
+        $"Тема: {message.Subject}");
+
+    Console.WriteLine(
+        message.TextBody);
+
+
+    await Reply(
+        message,
+        smtpServer,
+        smtpPort,
+        login,
+        password);
+
+
+    inbox.AddFlags(
+        uid,
+        MessageFlags.Seen,
+        true);
+}
+
+
+
+client.Disconnect(true);
+
+Console.WriteLine("Готово");
+        }
+        static async Task Reply(
+    MimeMessage original,
+    string smtpServer,
+    int smtpPort,
+    string login,
+    string password)
+{
+
+    var reply = new MimeMessage();
+
+
+    reply.From.Add(
+        MailboxAddress.Parse(login));
+
+
+    reply.To.Add(
+        original.From.Mailboxes.First());
+
+
+    reply.Subject =
+        "Re123: " + original.Subject;
+
+
+
+    reply.InReplyTo =
+        original.MessageId;
+
+
+
+   if (!string.IsNullOrEmpty(original.MessageId))
+{
+    reply.InReplyTo = original.MessageId;
+
+    reply.References.Add(
+        original.MessageId);
+}
+
+
+
+    reply.Body =
+        new TextPart("plain")
+        {
+            Text =
+            """
+            Принято.
+
+            Ваша мысль получена и будет обработана AI-агентами.
+            """
+        };
+
+
+
+    using var smtp = new SmtpClient();
+
+
+    await smtp.ConnectAsync(
+        smtpServer,
+        smtpPort,
+        true);
+
+
+    await smtp.AuthenticateAsync(
+        login,
+        password);
+
+
+    await smtp.SendAsync(reply);
+
+
+    await smtp.DisconnectAsync(true);
+
+
+    Console.WriteLine(
+        "Ответ отправлен");
+}
