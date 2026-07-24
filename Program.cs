@@ -1,7 +1,12 @@
 ﻿using System;
 using System.Threading.Tasks;
 using MemoAI.Models;
+//using Newtonsoft.Json;
+//using Newtonsoft.Json.Linq;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration.Json;
 
 namespace MemosAI
 {
@@ -10,18 +15,21 @@ namespace MemosAI
         // Лучше потом перенести в appsettings.json
         private const string Host = "https://memo.feshman-tech.ru";
         private const string Token = "memos_pat_IVxXijTXHTTdu5tZ66AHwWWewcm6Yhzl";
-
+        // Класс для работы с моделью
+        private static string modelId = "";
+        private static string apiKey = "";
+        private static string endpoint = "";
+       
         static async Task Main(string[] args)
         {
-            var builder = Kernel.CreateBuilder();
+            // Чтение конфигурации из файла
+            var config = new ConfigurationBuilder()
+                                .AddJsonFile("appsettings.json", optional: false)
+                                .Build();
 
-builder.AddOpenAIChatCompletion(
-    modelId: "google/gemma-3-12b",
-    apiKey: "lm-studio",
-    endpoint: new Uri("http://192.168.1.10:1234/v1"));
-
-var kernel = builder.Build();
-
+            modelId = config["LLM:ModelId"]!;
+            apiKey = config["LLM:ApiKey"]!;
+            endpoint = config["LLM:Endpoint"]!;
 
             Console.WriteLine("=== Memos AI Agent ===");
             Console.WriteLine();
@@ -47,9 +55,10 @@ var kernel = builder.Build();
 
                     try
                     {
+                       
                         await ProcessMemo(memo);
 
-                        await client.UpdateMemo(memo);
+                        //await client.UpdateMemo(memo);
 
                         processed++;
 
@@ -84,12 +93,33 @@ var kernel = builder.Build();
 
         private static async Task ProcessMemo(Memo memo)
         {
+            var llm_builder = Kernel.CreateBuilder();
+            llm_builder.AddOpenAIChatCompletion(
+                                                    modelId: modelId!,
+                                                    apiKey: apiKey!,
+                                                    endpoint: new Uri(endpoint!)
+                                                );
+
+            var llm_kernel = llm_builder.Build();
+            var chat = llm_kernel.GetRequiredService<IChatCompletionService>();
+
             Console.WriteLine("Обработка AI...");
 
             // Здесь позже будет вызов OpenAI / LM Studio / Ollama
+            if (memo.Content.Contains("#aip"))
+            {
+                var response = await chat.GetChatMessageContentAsync(
+    "Прочитай мою заметки и предложи 3-4 тега для нее. Ответ должен быть в json содержащий только теги. Отсоритруй теги в порядке релевантности  " + memo.Content);
+                    Console.WriteLine(response.Content);
 
-            memo.Content +=
-                $"\n\n---\nОбработано AI {DateTime.Now:G}";
+                // Здесь можно добавить дополнительную логику для обработки тега
+                Console.WriteLine("Тег #aip найден в заметке.");
+            }
+
+
+
+
+            memo.Content += $"\n\n---\nОбработано AI {DateTime.Now:G}";
 
             await Task.CompletedTask;
         }
