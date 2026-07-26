@@ -1,3 +1,13 @@
+             
+        string MessageId;
+        string Mailboxes
+        string Subject;
+        string Body;
+
+       
+       
+       
+       
         // Лучше потом перенести в appsettings.json
         private const string Host = "https://memo.feshman-tech.ru";
         private const string Token = "memos_pat_IVxXijTXHTTdu5tZ66AHwWWewcm6Yhzl";
