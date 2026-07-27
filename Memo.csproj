@@ -17,9 +17,10 @@
     <None Update="logsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="PROMPTS\ClarificationQuestion.txt">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+
+     <None Update="PROMPTS\**\*">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+   </None>
 
     </ItemGroup>
   

@@ -26,7 +26,7 @@ namespace MemosAI
         private static ManualResetEvent thdStopEvent = new ManualResetEvent(false);
         //
         // Хранение цепочки цифр
-        private static HistoryStorage m_historyStorage = new HistoryStorage(@"d:\Memo");
+        private static HistoryStorage m_historyStorage = new HistoryStorage(@"HISTORY\");
         
         static async Task Main(string[] args)
         {
@@ -144,7 +144,7 @@ namespace MemosAI
                     }
                     m_historyStorage.ProcessMessage(baseID, hm);
                     //
-                    Reply(message);
+                    //Reply(message);
                     //
                     inbox.AddFlags(uid, MessageFlags.Seen,  true);
                 }
