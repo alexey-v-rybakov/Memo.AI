@@ -78,4 +78,38 @@ public class MemosClient
 
         response.EnsureSuccessStatusCode();
     }
+
+    public async Task<Memo?> CreateMemo(Memo memo)
+{
+    var body = new
+    {
+        content = memo.Content,
+        visibility = "PRIVATE"
+    };
+
+    var json = JsonSerializer.Serialize(body);
+
+    var request = new HttpRequestMessage(
+        HttpMethod.Post,
+        "/api/v1/memos")
+    {
+        Content = new StringContent(
+            json,
+            Encoding.UTF8,
+            "application/json")
+    };
+
+    var response = await _http.SendAsync(request);
+
+    response.EnsureSuccessStatusCode();
+
+    var responseJson = await response.Content.ReadAsStringAsync();
+
+    return JsonSerializer.Deserialize<Memo>(
+        responseJson,
+        new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+}
 }

@@ -14,7 +14,7 @@ using MailKit.Search;
 using MimeKit;
 using Serilog;
 using Serilog.Settings.Configuration;
-using Memo.AI.Services;
+
 using Memo.AI.Models;
 
 

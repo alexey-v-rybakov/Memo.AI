@@ -10,8 +10,7 @@ using MailKit.Net.Smtp;
 using MailKit.Search;
 using MimeKit;
 using System.Text.Encodings.Web;
-
-namespace Memo.AI.Services;
+namespace MemoAI.Models;
 
 public class HistoryStorage
 {
@@ -433,7 +432,25 @@ public class HistoryStorage
 
         var llm_kernel = llm_builder.Build();
         var chat = llm_kernel.GetRequiredService<IChatCompletionService>();
-        string ai_req = System.IO.File.ReadAllText(@"PROMPTS\allow_public.txt");
+
+        string ai_req_allow = System.IO.File.ReadAllText(@"PROMPTS\allow_public.txt");
+        ai_req_allow += o_msg.Body;
+        
+        var response1 = chat.GetChatMessageContentAsync(ai_req_allow).GetAwaiter().GetResult();
+        Log.Information(response1.Content);
+        if (response1.Content.Contains("PUBLIC"))
+        {
+            Console.WriteLine("Найдено PUBLIC");
+            var client = new MemosClient(AppConfig.m_config.Memo.Host, AppConfig.m_config.Memo.Token);
+            MemoAI.Models.Memo mm = new MemoAI.Models.Memo();
+            var memos =  client.GetAllMemos().GetAwaiter().GetResult();
+            mm.Name = "test";
+            mm.Content = "test";
+            client.CreateMemo(mm).GetAwaiter().GetResult();
+            
+        }
+
+        string ai_req = System.IO.File.ReadAllText(@"PROMPTS\rewrite.txt");
         Log.Information("Запрос AI...");
 
 
