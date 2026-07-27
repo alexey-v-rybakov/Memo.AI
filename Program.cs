@@ -146,6 +146,8 @@ namespace MemosAI
                     //
                     //Reply(message);
                     //
+
+                    
                     inbox.AddFlags(uid, MessageFlags.Seen,  true);
                 }
             }

@@ -246,7 +246,7 @@ public class HistoryStorage
                     {
                         message.step = "draft_answer";
                         chain.Messages.Add(message); // добавить текущее сообщение
-                        HistoryMessage clr_msg = RequestUserRewrite(base_id, message);  
+                        HistoryMessage clr_msg = RequestUserRewrite(base_id, message, hm);  
                         SendMailToUser(clr_msg);
                         chain.Messages.Add(clr_msg);
                         break;
@@ -422,8 +422,9 @@ public class HistoryStorage
         return clr_msg;
     }
 
-      public HistoryMessage RequestUserRewrite(string base_id, HistoryMessage o_msg)
+      public HistoryMessage RequestUserRewrite(string base_id, HistoryMessage o_msg, HistoryMessage prev_msg)
     {
+        o_msg.Body = MailTextCleaner.RemoveQuotedText(o_msg.Body);
         var llm_builder = Kernel.CreateBuilder();
         llm_builder.AddOpenAIChatCompletion(
                                         modelId: AppConfig.m_config.LLM.ModelId,
@@ -444,10 +445,18 @@ public class HistoryStorage
             var client = new MemosClient(AppConfig.m_config.Memo.Host, AppConfig.m_config.Memo.Token);
             MemoAI.Models.Memo mm = new MemoAI.Models.Memo();
             var memos =  client.GetAllMemos().GetAwaiter().GetResult();
-            mm.Name = "test";
-            mm.Content = "test";
+            mm.Name = "Публикация";
+            mm.Content = prev_msg.Body;
             client.CreateMemo(mm).GetAwaiter().GetResult();
-            
+
+                    HistoryMessage clr_msg1 = new HistoryMessage();
+        clr_msg1.step        = "end";
+        clr_msg1.Subject     = o_msg.Subject;
+        clr_msg1.InReplyTo   = o_msg.MessageId;
+        clr_msg1.Mailboxes   = o_msg.Mailboxes;
+        clr_msg1.Body        = "Заметка опубликована";
+
+            return clr_msg1;
         }
 
         string ai_req = System.IO.File.ReadAllText(@"PROMPTS\rewrite.txt");
@@ -494,11 +503,16 @@ public class HistoryStorage
             {
                 ai_req = ai_req.Replace("{draft_answer}", hm.Body);
             }
-
+           
+                
+           
 
 
         }
 
+            ai_req = ai_req.Replace("{context.draft}", prev_msg.Body);
+           
+                ai_req = ai_req.Replace("{context.draft_answer}", o_msg.Body);
 
 
 
