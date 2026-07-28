@@ -1,0 +1,32 @@
+{
+  "id": "clarification",
+
+  "name": "Уточнение информации",
+
+  "description": "Задает пользователю уточняющие вопросы",
+
+
+  "output": 
+  {
+    "saveAs": "clarification"
+  },
+
+  "conditions": [
+    {
+      "if": "NeedClarification == true",
+      "next": "agents/send_questions.json"
+    },
+    {
+      "if": "NeedClarification == false",
+      "next": "agents/draft_memo.json"
+    }
+  ],
+
+  "retry": {
+    "count": 3,
+    "delaySeconds": 10
+  },
+
+
+  "onError": "agents/error_handler.json"
+}

@@ -219,6 +219,9 @@ public class HistoryStorage
             {
                 if (hm.MessageId == message.InReplyTo)
                 {
+                    //  Удалить цитируемое сообщение      
+                    message.Body = MailTextCleaner.RemoveQuotedText(hm.Body);    
+
                     Log.Information(@"Найдено исходное сообщение: {hm.step}");
 
                     if (hm.step == "clarification")
@@ -258,6 +261,29 @@ public class HistoryStorage
         }
 
         SaveHistoryChain(base_id);
+    }
+
+    public void RunAgent(string base_id, string agent_name, HistoryMessage o_msg, HistoryMessage prev_msg)
+    {
+           //HistoryMessage clr_msg = RequestUserClarificationQuestion(message);
+           // SendMailToUser(clr_msg);
+           // chain.Messages.Add(clr_msg);
+
+           // Пока активный агент  агентов
+      /*     while (!string.IsNullOrWhiteSpace(agent_name))
+           { 
+                // Считает код агента из файла 
+                AgentInfo agent = new AgentInfo(agent_name);
+                // Загружает все переменные контекста в промпт агента
+                // base_id - id цепочки диалога, o_msg - ссообщение пользователя, prev_msg - предидущее сообщение
+                agent.LoadContext(base_id, o_msg, prev_msg);
+                // Исполняем агента
+                agent.Execute();
+                // Регистрируем активность после исполнения агента
+                
+                
+           }*/
+
     }
 
     public HistoryMessage RequestUserClarificationQuestion(HistoryMessage o_msg)
@@ -424,7 +450,7 @@ public class HistoryStorage
 
       public HistoryMessage RequestUserRewrite(string base_id, HistoryMessage o_msg, HistoryMessage prev_msg)
     {
-        o_msg.Body = MailTextCleaner.RemoveQuotedText(o_msg.Body);
+ 
         var llm_builder = Kernel.CreateBuilder();
         llm_builder.AddOpenAIChatCompletion(
                                         modelId: AppConfig.m_config.LLM.ModelId,
